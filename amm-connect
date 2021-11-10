@@ -1,0 +1,74 @@
+#!/bin/bash
+
+help()
+{
+   # Display Help
+   echo "amm-connect is used for connecting to the AMM on IBM Bladecenters"
+   echo
+   echo "a working java installation is required"
+   echo 
+   echo "Syntax: amm-connect [-h|-u <username>|-p <password>|-s <bladeserver>|-c <bladecenter imm>]"
+   echo "options:"
+   echo "-h     Print this Help."
+   echo "-u     Username (default: USERID)"
+   echo "-p     Password (default: PASSW0RD)"
+   echo "-s     Bladeserver to connect to (default: 1)"
+   echo "-c     Bladecenter IMM address"
+   echo
+
+   exit 0
+}
+
+while getopts ":hc:p:u:s:" arg; do
+   case $arg in
+      h) # display Help
+         help
+         ;;
+      u) 
+	 USERID=${OPTARG}
+	 ;;
+      p)
+         PASSWORD=${OPTARG}
+	 ;;
+      s) 
+         CONSOLE=${OPTARG}
+	 ;;
+      c)
+	 SERVER=${OPTARG}
+	 ;;
+   esac
+done
+
+if [[ "$SERVER" == "" ]]; then
+	echo 
+	echo "Bladecenter IMM not defined"
+	echo
+	help
+fi
+
+if [[ "$USERID" == "" ]]; then
+	USERID="USERID"
+fi
+
+if [[ "$PASSWORD" == "" ]]; then
+        PASSWORD="PASSW0RD"
+fi
+
+if [[ "$CONSOLE" == "" ]]; then
+        CONSOLE="1"
+fi
+
+wget --save-cookies /tmp/cookies.txt \
+     --keep-session-cookies \
+     --output-file /tmp/loginresult.html \
+     -O /tmp/login.php \
+     --post-data "userid=$USERID&password=$PASSWORD&login=submit" \
+     -q \
+     http://$SERVER/shared/userlogin.php
+
+wget --load-cookies /tmp/cookies.txt http://$SERVER/private/remotekvm.jar -O /tmp/remotekvm.jar -q
+
+RBS=`wget -q --load-cookies /tmp/cookies.txt -O - http://$SERVER/shared/remotecontrol.js.php | grep rbs | cut -f2 -d\" |uniq`
+
+java -jar /tmp/remotekvm.jar -s $SERVER -r $RBS -b $CONSOLE
+
